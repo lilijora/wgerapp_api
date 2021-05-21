@@ -285,15 +285,22 @@ class Api():
     def save_ex_details(self,dir_name):
         ex_images = []
         ex_comments = []
+        all_exercises=[]
         exercises = [i['exercise'] for i in user1.get_info('setting')['results']]
         for i in range(20, 100, 20):
             ex_images.extend(user1.get_info(f'exerciseimage/?limit=20&offset={i}')['results'])
         for i in range(20, 120, 20):
             ex_comments.extend(user1.get_info(f'exercisecomment/?limit=20&offset={i}')['results'])
+        for i in range(20, 400, 20):
+            all_exercises.extend(user1.get_info(f'exercise/?limit=20&offset={i}')['results'])
 
         for i in exercises:
             ex_image = "This exercise has no image available."
             ex_comment = "This exercise has no comments available."
+            ex_name="Exercise"
+            for j in all_exercises:
+                if j['id']==i:
+                    ex_name=j['name']
             for j in ex_images:
                 if j['id'] == i:
                     ex_image = j['image']
@@ -304,8 +311,8 @@ class Api():
             message = f"""<html>
             <head></head>
             <body>
-            <p>Exercise Description</p>
-            <p>{ex_comment}</p>
+            <h1>{ex_name}</h1>
+            <h4>{ex_comment}</h4>
             <a href = {ex_image}>Click here for Exercise Image</a>
             </body>
             </html>"""
@@ -320,10 +327,10 @@ def main_program(user_name):
     # print(user_name.chose_weight('2021-08-18',48))
     # print(user_name.week_program(1750,1300))
     # print(user_name.create_workout('Workout1', 3))
-    # print(user_name.save_ex_details('exercise_details'))
+    print(user_name.save_ex_details('exercise_details'))
     # print(user_name.schedule("Schedule1","2021-08-18"))
     # print(user_name.workout_in_schedule('Schedule1','Workout1',4))
-    print(user_name.delete_exercise('Workout1','Day 2','Jumping Jacks'))
+    # print(user_name.delete_exercise('Workout1','Day 2','Jumping Jacks'))
     # print(user_name.delete_workout('Workout1'))
 
 main_program(user1)
