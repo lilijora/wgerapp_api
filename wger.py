@@ -27,10 +27,13 @@ class Api():
         return req.content
 
 
-    def get_info(self,url_file):
+    def get_info(self,url_file,offset=20):
         """General function for GET requests"""
         get_url=self.base_url+url_file
         response = requests.get(url=get_url,headers={'Authorization': self.auth_token})
+        if "next" in response:
+            for i in range(20,offset,20):
+                response.update(requests.get(url=f"get_url?limit=20&offset={i}",headers={'Authorization': self.auth_token}))
         return response.json()
 
     def post_info(self,url_file,post_data):
@@ -42,10 +45,10 @@ class Api():
     def delete_info(self,url_file):
         """General function for DELETE requests"""
         delete_url = self.base_url + url_file
-        requests.delete(url=delete_url,headers={'Authorization': self.auth_token})
-        return "Item Deleted"
+        response=requests.delete(url=delete_url,headers={'Authorization': self.auth_token})
+        return response.json()
 
-    def chose_weight(self,date,weight):
+    def weight_entry(self,date,weight):
         """The function creates weight goals for a specific date."""
 
         data={ "id":"","date":date,"weight":weight,"user":""}
@@ -155,7 +158,7 @@ class Api():
             return "Training not found"
 
         categories =dict( [(i['name'],0) for i in self.get_info('exercisecategory/')['results']])
-        exercises=[(i['id'],i['category']['name']) for i in self.get_info("exerciseinfo/?limit=100&offset=100",)['results']]
+        exercises=[(i['id'],i['category']['name']) for i in self.get_info("exerciseinfo/",100)['results']]
         selected.append(random.choice([i for i in exercises if i[1]==('Chest')]))
         categories['Chest'] += 1
         selected.append(random.choice([i for i in exercises if i[1] == ('Back')]))
@@ -228,9 +231,7 @@ class Api():
 
     def delete_exercise(self,workout,day,exercise):
         """The function delete an exercise from a specific training day"""
-        exercises=[]
-        for i in range(20,420,20):
-            exercises.extend(self.get_info(f'exercise/?limit=20&offset={i}')['results'])
+        exercises=self.get_info('exercise/',400)['results']
         workouts=self.get_info('workout/')['results']
         days=self.get_info('day/')['results']
         sets=self.get_info('set/')['results']
@@ -283,16 +284,10 @@ class Api():
         return f"Workout {workout_name} was deleted successfully!"
 
     def save_ex_details(self,dir_name):
-        ex_images = []
-        ex_comments = []
-        all_exercises=[]
         exercises = [i['exercise'] for i in user1.get_info('setting')['results']]
-        for i in range(20, 100, 20):
-            ex_images.extend(user1.get_info(f'exerciseimage/?limit=20&offset={i}')['results'])
-        for i in range(20, 120, 20):
-            ex_comments.extend(user1.get_info(f'exercisecomment/?limit=20&offset={i}')['results'])
-        for i in range(20, 400, 20):
-            all_exercises.extend(user1.get_info(f'exercise/?limit=20&offset={i}')['results'])
+        ex_images=self.get_info(f'exerciseimage/',100)['results']
+        ex_comments=self.get_info(f'exercisecomment/',120)['results']
+        all_exercises=self.get_info(f'exercise/',400)['results']
 
         for i in exercises:
             ex_image = "This exercise has no image available."
@@ -324,13 +319,17 @@ class Api():
 
 user1=Api("Token ffb50c5ea4d743aefa7540aa176590d7de57c907","lilijora","belive2021")
 def main_program(user_name):
-    # print(user_name.chose_weight('2021-08-18',48))
+    # print(user_name.weight_entry('2021-08-18',48))
     # print(user_name.week_program(1750,1300))
     # print(user_name.create_workout('Workout1', 3))
-    print(user_name.save_ex_details('exercise_details'))
+    # print(user_name.save_ex_details('exercise_details'))
     # print(user_name.schedule("Schedule1","2021-08-18"))
     # print(user_name.workout_in_schedule('Schedule1','Workout1',4))
-    # print(user_name.delete_exercise('Workout1','Day 2','Jumping Jacks'))
-    # print(user_name.delete_workout('Workout1'))
-
+    # print(user_name.delete_exercise('Workout1','Day 1','Hindu Squats'))
+    # print(user_name.delete_info('workout/'))
+    pass
 main_program(user1)
+# print(user1.get_info('exercise/',100))
+# print(user1.get_info('day/'))
+
+print(len(user1.get_info('exercise/',400)['results']))
