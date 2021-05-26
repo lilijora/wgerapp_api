@@ -1,0 +1,23 @@
+[nutrition_plans.nutrition_plan1]
+    description="Nutrition_plan1"
+    [nutrition_plans.nutrition_plan1.meals.meal1]
+        time="08:00:00"
+        [nutrition_plans.nutrition_plan1.meals.meal1.items.item1]
+            ingredient = "100% Apple & Mango"
+            amount = 2
+            weight = 100
+        [nutrition_plans.nutrition_plan1.meals.meal1.items.item2]
+            ingredient = "100 biscottes"
+            amount = 6
+            weight = 30
+
+    [nutrition_plans.nutrition_plan1.meals.meal2]
+        time="12:00:00"
+        [nutrition_plans.nutrition_plan1.meals.meal2.items.item1]
+            ingredient = "100% banane & himbeere"
+            amount = 2
+            weight = 100
+        [nutrition_plans.nutrition_plan1.meals.meal2.items.item2]
+            ingredient = "0% fat Greek style yogurt"
+            amount = 6
+            weight = 30
