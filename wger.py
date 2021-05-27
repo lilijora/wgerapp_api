@@ -11,6 +11,7 @@ class Api():
     def __repr__(self):
         return f"User: {self.username}"
 
+#BASIC FUNCTIONS
     def user_login(self):
         """Login Function"""
         login_url='https://wger.de/en/user/login'
@@ -31,12 +32,25 @@ class Api():
         req=requests.post(url=login_url, data=login_data, headers=header)
         return req.content
 
+    def toml_to_dict(self, toml_file):
+        """The function takes a toml file as argument and returns a dictionary"""
+        with open(toml_file) as f:
+            data = f.read()
+        data = toml.loads(data)
+        return data
+
+    def dict_to_toml(self, dict_data, new_file):
+        """The function takes a dictionary as argument and creates a toml file"""
+        with open(f"{new_file}.toml", mode="w") as f:
+            data = toml.dumps(dict_data)
+            f.write(data)
+        return bool(f"{new_file}.toml")
 
     def get_info(self,url_file,offset=20):
         """General function for GET requests"""
         get_url=self.base_url+url_file
         response=requests.get(url=get_url,headers={'Authorization': self.auth_token}).json()
-        if "next" in response and  response["next"]!=None:
+        if response.get("next"):
             results=response['results']
             for i in range(20,offset,20):
                 results.extend(requests.get(url=f"{get_url}?limit=20&offset={i}",headers={'Authorization': self.auth_token}).json()['results'])
@@ -47,23 +61,31 @@ class Api():
         """General function for POST requests"""
         post_url=self.base_url+url_file
         response = requests.post(url=post_url,data=post_data,headers={'Authorization': self.auth_token})
-        return response.json()
+        if response.status_code==201:
+            return response.json()
+        else:
+            return f"Status Code : {response.status_code}"
 
     def delete_info(self,url_file):
         """General function for DELETE requests"""
         delete_url = self.base_url + url_file
         response=requests.delete(url=delete_url,headers={'Authorization': self.auth_token})
-        return response
+        if response.status_code==200:
+            return response
+        else:
+            return f"Status Code : {response.status_code}"
+
 
     def match(self,dict1,dict_item,param1,param2):
+        """The function matches different keys/values of a dictionary"""
         current_value=""
         for i in dict1:
             if i[param1] == dict_item:
                 current_value = i.get(param2)
         return current_value
 
-
-    def weight_entry(self,date,weight):
+#WEIGHT RELATED FUNCTION
+    def create_weight_goals(self,date,weight):
         """The function creates weight goals for a specific date."""
 
         data={ "id":"",
@@ -72,181 +94,255 @@ class Api():
                "user":""}
         response=self.post_info('weightentry/',data)
         return response
-    
-    def make_plan(self,plan_name):
-        """The function creates a new nutrition plan and also a meal for the plan"""
 
-        plan_data = {"id": "",
-                     "creation_date": "",
-                     "description": plan_name,
-                     "has_goal_calories": True,
-                     "language": 2}
-        plan=self.post_info('nutritionplan/',plan_data)
-        meal_data={"id":"",
-                   "plan": plan.get('id'),
-                   "order": "",
-                   "time":""}
-        meal=self.post_info('meal/',meal_data)
-        return meal
+#NUTRITION RELATED FUNCTIONS
+    def create_nutritionplan(self, nutritionplan_name,calories_goal=True):
+        """The function creates a new nutrition plan """
+        data = {"id": "",
+                "creation_date": "",
+                "description": nutritionplan_name,
+                "has_goal_calories": calories_goal,
+                "language": 2}
+        response= self.post_info('nutritionplan/', data)
+        return response
 
-    def add_item(self,meal,amount):
+    def create_meal(self,nutritionplan_id,time="08:00:00"):
+        """The function creates a new meal for a specific plan """
+        data = {"id": "",
+                "plan": nutritionplan_id,
+                "order": "",
+                "time": time}
+        response = self.post_info('meal/', data)
+        return response
+
+    def select_mealitem(self):
+        """This function selects a random item and returns in a tuple the id and kclas for that item"""
+
+        items=self.get_info("ingredient/")
+        new_item=random.choice(items.get("results"))
+        ingredient=(new_item.get('id'),new_item.get('energy'))
+        return ingredient
+
+    def add_mealitem(self,meal,item,amount):
         """The function adds a new item to a specific meal"""
 
-        items=self.get_info('/ingredient')
-        new_item=random.choice(items['results'])
-        ingredient=new_item.get('id')
         data_item={"id":"",
                    "meal": meal,
-                   "ingredient": ingredient,
+                   "ingredient": item,
                    "weight_unit":"",
                    "order": 1,
                    "amount":amount}
-        self.post_info('mealitem/',data_item)
-        return new_item.get('energy')
+        request=self.post_info('mealitem/',data_item)
+        return request
 
-    def week_program(self,kcals_1,kcals_2):
+    def create_nutritionplans(self, kcals):
         """The function creates nutrition plans for every single day in a week based on energy targets"""
 
         days=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        for i in days :
-            nutrition_plan=self.make_plan(i)
-            meal_id=nutrition_plan.get('id')
-            total_kcals=0
-            total_items=0
+        for i in days:
+            nutrition_plan = self.create_nutritionplan(i,True)
+            meal=self.create_meal(nutrition_plan.get('id'))
+            meal_id=meal.get('id')
+            total_kcals = 0
+
             if i in ['Monday', 'Tuesday', 'Wednesday', 'Thursday']:
-                while(total_kcals<=kcals_1):
-                    new=self.add_item(meal_id,100)
-                    total_kcals += new
-                    total_items += 1
+                while (total_kcals <= kcals):
+                    new_item = self.select_mealitem()
+                    self.add_mealitem(meal_id, new_item[0], 100)
+                    total_kcals += new_item[1]
+
             else:
-                while (total_kcals < kcals_2):
-                    new = self.add_item(meal_id,100)
-                    total_kcals += new
-                    total_items += 1
-        return self.get_info('nutritionplan/').get("count")>=len(days)
+                while (total_kcals < kcals):
+                    new_item = self.select_mealitem()
+                    total_kcals += new_item[1]
+                    if total_kcals < kcals:
+                        self.add_mealitem(meal_id, new_item[0], 100)
+
+        return self.get_info('nutritionplan/').get("count") >= len(days)
+
+    def create_nutritionplans_with_tomlfile(self, toml_file):
+        """The function takes data from a tomlfile and creates new nutrition plans based on the tomlfile data"""
+
+        toml_data = self.toml_to_dict(toml_file)
+        if 'nutrition_plans' in toml_data:
+            for nutritionplan in toml_data.get("nutrition_plans"):
+                request = self.create_nutritionplan(
+                    toml_data.get("nutrition_plans").get(nutritionplan).get("description"), True)
+                nutritionplan_id = request.get('id')
+                if "meals" in toml_data.get("nutrition_plans").get(nutritionplan):
+                    self.create_meals_with_tomlfile(toml_data.get("nutrition_plans").get(nutritionplan).get('meals'),
+                                                    nutritionplan_id)
+
+    def create_meals_with_tomlfile(self, toml_data, nutritionplan_id):
+        """The function creates new meals for a specific nutrition plan"""
+
+        for meal in toml_data:
+            request = self.create_meal(nutritionplan_id, toml_data.get(meal).get("time"))
+            meal_id = request.get('id')
+            if "items" in toml_data.get(meal):
+                self.add_items_from_tomlfile(toml_data.get(meal).get('items'), meal_id)
+
+    def add_items_from_tomlfile(self, toml_data, meal_id):
+        """The function adds new meal items for a specific meal"""
+
+        for item in toml_data:
+            item_id = self.match(self.get_info("ingredient/").get('results'), toml_data.get(item).get('ingredient'),
+                                 'name', 'id')
+            if item_id == "":
+                return f"Ingredient is not in the list"
+            amount = toml_data.get(item).get('amount')
+            weight = toml_data.get(item).get('weight')
+            total_amount = amount * weight
+            self.add_mealitem(meal_id, item_id, total_amount)
+
+#WORKOUT RELATED FUNCTION
 
     def create_exercise(self):
         """This function creates a new exercise."""
-
         categories = self.get_info('exercisecategory/').get('results')
         equipments = self.get_info('equipment/').get('results')
         muscles = self.get_info('muscle/').get('results')
+        exercise_details=self.add_exercise_details(categories,equipments,muscles)
 
-####### First method - Random exercise details ###################################################################
-        category = random.choice([i['name'] for i in categories])
-        equipment = random.choice([i['name'] for i in equipments])
-        muscle = random.choice([i['name'] for i in muscles])
-        name=f"{category} {muscle}"
-        author="Lili"
-        description = f"Exercise {name}, category {category},equipment {equipment}, muscles {muscle},made by {author}."
-
-
-####### Second method - Chose details for your exercise ###########################################################
-        # name = input("Add a name for the exercise: - ")
-        # category = input(f"Chose one category {[i['name'] for i in categories]}: \n- ").capitalize()
-        # while(category not in [i['name'] for i in categories] ):
-        #     category = input(f"Chose one from the list {[i['name'] for i in categories]}: \n- ").capitalize()
-        #
-        # equipment = input(f"Any equipment {[i['name'] for i in equipments]} \n- ").capitalize()
-        # while(equipment not in [i['name'] for i in equipments] ):
-        #     equipment = input(f"Chose one from the list {[i['name'] for i in equipments]} \n- ").capitalize()
-        #
-        # muscle = input(f"Primary Muscles {[i['name'] for i in muscles]} \n- ").capitalize()
-        # while(muscle not in [i['name'] for i in muscles]):
-        #     print(muscle)
-        #     muscle=input(f"Chose muscles from the list {[i['name'] for i in muscles]} \n- ").capitalize()
-        # author = input("Enter your name: - ")
-        # description = f"Exercise {name}, category {category},equipment {equipment}, muscles {muscles},made by {author}."
-
-        category_id = str([i['id'] for i in categories if i['name'] == category][0])
-        equipment_id = str([i['id'] for i in equipments if i['name'] == equipment][0])
-        muscle_id =str([i['id'] for i in muscles if i['name'] == muscle][0])
-        data={'name':name,
-              'description':description,
+        category_id =self.match(categories,exercise_details.get('category'),'name','id')
+        equipment_id =self.match(equipments,exercise_details.get('equipment'),'name','id')
+        muscle_id =self.match(muscles,exercise_details.get('muscles'),'name','id')
+        data={'name':exercise_details.get('name'),
+              'description':exercise_details.get('description'),
               'category':category_id,
               'equipment': equipment_id,
               'muscles':muscle_id,
-              'license_author': author}
+              'license_author': exercise_details.get('author')}
         response=self.post_info('exercise/',data)
         return response
 
-    def select_exercises(self,workout,day,total_ex,ex_musclegroup):
+    def add_exercise_details(self,categories,equipments,muscles):
+        category = random.choice([i['name'] for i in categories])
+        equipment = random.choice([i['name'] for i in equipments])
+        muscle = random.choice([i['name'] for i in muscles])
+        name = f"{category} {muscle}"
+        author = "Lili"
+        description = f"Exercise {name}, category {category},equipment {equipment}, muscles {muscle},made by {author}."
+        data = {'name': name,
+                'description': description,
+                'category': category,
+                'equipment': equipment,
+                'muscles': muscle,
+                'license_author': author}
+        return data
+
+    def choose_exercise_details(self,categories,equipments,muscles):
+        name = input("Add a name for the exercise: - ")
+        category = input(f"Chose one category {[i['name'] for i in categories]}: \n- ").capitalize()
+        while(category not in [i['name'] for i in categories] ):
+            category = input(f"Chose one from the list {[i['name'] for i in categories]}: \n- ").capitalize()
+
+        equipment = input(f"Any equipment {[i['name'] for i in equipments]} \n- ").capitalize()
+        while(equipment not in [i['name'] for i in equipments] ):
+            equipment = input(f"Chose one from the list {[i['name'] for i in equipments]} \n- ").capitalize()
+
+        muscle = input(f"Primary Muscles {[i['name'] for i in muscles]} \n- ").capitalize()
+        while(muscle not in [i['name'] for i in muscles]):
+            muscle=input(f"Chose muscles from the list {[i['name'] for i in muscles]} \n- ").capitalize()
+        author = input("Enter your name: - ")
+        description = input("Write your description here - it must contain 40 characters")
+        while(len(description)<40):
+            description = input("Your description must contain 40 characters")
+        data = {'name': name,
+                'description': description,
+                'category': category,
+                'equipment': equipment,
+                'muscles': muscle,
+                'license_author': author}
+        return data
+
+    def add_exercise(self, day_id, ex_id, sets, reps):
+        """The function adds an exercise to a specific training day """
+        """You can chose the number o sets and also the number of repetitions for each set"""
+        data_set = {"id": "",
+                    "exerciseday": day_id,
+                    "sets": sets,
+                    "order": 1}
+        set_request = self.post_info('set/', data_set)
+        data = {"id": "",
+                "set": set_request.get('id'),
+                "exercise": ex_id,
+                "repetition_unit": 1,
+                "reps": reps,
+                "weight_unit": 1}
+        self.post_info('setting/', data)
+
+    def select_exercises(self, workout_id, day_id, total_exercise_number, muscle_group_exercise_number):
         """
-        The function selects 6 exercises for a given training day.
-        There needs to be no more than 2 exercises per muscle group per day.
+        The function selects a given number of exercises for a given training day based on their id's.
+        You can chose the number of exercises per muscle group..
         Also, there needs to be at least 1 exercice for back and one for front per day.
         """
-        workouts=self.get_info('workout/').get('results')
-        days=self.get_info('day/').get('results')
         selected = []
-
-        id_workout=self.match(workouts, workout, 'name', 'id')
-        if id_workout=="":
+        if workout_id == "" or day_id=="":
             return False
 
-        id_day = self.match(days,day, 'description', 'id')
-        if id_workout == "":
-            return False
+        categories = dict([(i['name'], 0) for i in self.get_info('exercisecategory/').get('results')])
+        exercises = [(i['id'], i['category']['name']) for i in self.get_info("exerciseinfo/", 420).get('results')]
 
-        categories =dict( [(i['name'],0) for i in self.get_info('exercisecategory/').get('results')])
-        exercises=[(i['id'],i['category']['name']) for i in self.get_info("exerciseinfo/",100).get('results')]
-        selected.append(random.choice([i for i in exercises if i[1]==('Chest')]))
-        categories['Chest'] += 1
-        selected.append(random.choice([i for i in exercises if i[1] == ('Back')]))
-        categories['Back'] += 1
-
-        while(len(selected)<total_ex):
-            new=random.choice([i for i in exercises])
-            if categories[new[1]]<ex_musclegroup:
+        while (len(selected) < total_exercise_number):
+            for j in ['Chest', 'Back']:
+                if categories[j] < 1:
+                    selected.append(random.choice([i for i in exercises if i[1] == j]))
+                    categories[j] += 1
+            new = random.choice([i for i in exercises])
+            if categories[new[1]] < muscle_group_exercise_number:
                 selected.append(new)
-                categories[new[1]]+=1
+                categories[new[1]] += 1
 
-        for i in [i[0] for i in selected]:
-            id_ex=i
-            data_set={"id":""
-                ,     "exerciseday":id_day,
-                      "sets": 4,
-                      "order": 1}
-            set_ex=self.post_info('set/',data_set)
-            data ={"id":"",
-                   "set":set_ex.get('id'),
-                   "exercise": id_ex,
-                   "repetition_unit": 1,
-                   "reps": 12,
-                   "weight_unit": 1}
-            self.post_info('setting/',data)
-        return f"Exercises added successfully to {day}"
+        for id_ex in [i[0] for i in selected]:
+            self.add_exercise(day_id, id_ex, 4, 12)
 
-    def create_workout(self,workout_name,no_days):
+        return len([i for i in self.get_info('set/').get('results') if i['exerciseday'] == day_id]) == total_exercise_number
+
+    def create_trainingday(self,workout_id,description,day_no):
+        data_day = {"id": "",
+                    "training": workout_id,
+                    "description": description,
+                    "day": day_no}
+        request = self.post_info('day/', data_day)
+        return request
+
+    def create_complete_trainingday(self, workout_id, trainingday_name, trainingday_no=0, total_exercise_number=6,
+                           muscle_group_exercise_number=2):
+        request=self.create_trainingday(workout_id,trainingday_name,trainingday_no)
+        self.select_exercises(workout_id, request.get('id'), total_exercise_number, muscle_group_exercise_number)
+
+    def create_workout(self, workout_name):
+        """This function creates a new workout"""
+        workout_data = {"id": "",
+                        "creation_date": "",
+                        "name": workout_name,
+                        "description": ""}
+        request = self.post_info('workout/', workout_data)
+        return request
+
+    def create_complete_workout(self, workout_name, no_days, total_exercise_number=6, muscle_group_exercise_number=2):
         """
         The function creates a complete workout.
         You can chose the number of training days and also the name of the workout.
-        Also, the function selects 6 exercises for each training day.
+        Also, the function select a given number of exercises for each training day.
         """
-        counter=0
-        id_workout=""
-        workout_data={"id":"",
-                      "creation_date": "",
-                      "name": workout_name,
-                      "description": ""}
-        self.post_info('workout/',workout_data)
+        counter = 0
+        workout_id = ""
+        self.create_workout(workout_name)
         for i in self.get_info('workout/').get('results'):
-            if i['name']==workout_name:
-                id_workout=i.get('id')
-
-        while(counter<no_days):
-            data_day={"id":"",
-                      "training":id_workout ,
-                      "description": f"Day {counter+1}",
-                      "day": [counter+1]}
-            self.post_info('day/',data_day)
-            self.select_exercises(workout_name,data_day['description'],6,2)
-            counter+=1
-        return any([i['id']==id_workout for i in user1.get_info('workout/').get('results')])
+            if i['name'] == workout_name:
+                workout_id = i.get('id')
+        while (counter < no_days):
+            self.create_complete_trainingday(workout_id, f"Day {counter + 1}", counter + 1, total_exercise_number,
+                                             muscle_group_exercise_number)
+            counter += 1
+        return any([i['id'] == workout_id for i in self.get_info('workout/').get('results')])
 
 
-    def schedule(self,schedule_name,start_date,is_loop,is_active):
-        """This function creates a new schedule.The schedule will be active and will have a given start date"""
+    def create_schedule(self,schedule_name,start_date,is_loop,is_active):
+        """This function creates a new schedule"""
         data={"id":"",
               "name": schedule_name,
               "start_date": start_date,
@@ -255,77 +351,80 @@ class Api():
         response=self.post_info('schedule/',data)
         return response
 
-    def workout_in_schedule(self,schedule_name,workout_name,duration):
+    def add_workout_to_schedule(self, schedule_name, workout_name, duration):
         """This function adds an existing workout to a schedule"""
-        schedules=self.get_info('schedule/')['results']
-        workouts=self.get_info('workout/')['results']
-        id_schedule=self.match(schedules,schedule_name,'name','id')
-        id_workout=self.match(workouts, workout_name, 'name', 'id')
-        data={"id":"",
-              "schedule": id_schedule,
-              "workout":id_workout,
-              "duration": duration}
-        response=self.post_info('schedulestep/',data)
+
+        schedules = self.get_info('schedule/').get('results')
+        workouts = self.get_info('workout/').get('results')
+        id_schedule = self.match(schedules, schedule_name, 'name', 'id')
+        id_workout = self.match(workouts, workout_name, 'name', 'id')
+        data = {"id": "",
+                "schedule": id_schedule,
+                "workout": id_workout,
+                "duration": duration}
+        response = self.post_info('schedulestep/', data)
         return response
 
+    def delete_exercise(self, workout, day=None, exercise=None):
+        """The function can deletes an exercise,a day or the enitre workout"""
+        """If the exercise is not specified than the day will be deleted"""
+        """If the day is not specified than the entire workout will be deleted"""
 
-    def delete_exercise(self,workout,day=None,exercise=None):
-        """The function delete an exercise from a specific training day"""
-        exercises=self.get_info('exercise/',420)['results']
-        workouts=self.get_info('workout/')['results']
-        days=self.get_info('day/')['results']
-        sets=self.get_info('set/',41)['results']
-        settings=self.get_info('setting/',41)['results']
-        day_ex=[]
-        id=""
+        exercises = self.get_info('exercise/', 420).get('results')
+        workouts = self.get_info('workout/').get('results')
+        days = self.get_info('day/').get('results')
+        sets = self.get_info('set/', 41).get('results')
+        settings = self.get_info('setting/', 41).get('results')
+        day_ex = []
+        id = ""
 
-        id_workout=self.match(workouts,workout, 'name', 'id')
-        if id_workout=="":
-            return (False,"Workout not found")
+        id_workout = self.match(workouts, workout, 'name', 'id')
+        if id_workout == "":
+            return (False, "Workout not found")
 
-        if day==None:
+        if day == None:
             return self.delete_workout(workout)
-        id_day=self.match(days, day, 'description', 'id')
-        if id_day=="":
-            return (False,"Day not found")
+        id_day = self.match(days, day, 'description', 'id')
+        if id_day == "":
+            return (False, "Day not found")
 
-        if exercise==None:
-            return self.delete_day(workout,day)
-        id_exercise=self.match(exercises,exercise, 'name', 'id')
-        if id_exercise=="":
-            return (False,"Exercise not found")
+        if exercise == None:
+            return self.delete_trainingday(workout, day)
+        id_exercise = self.match(exercises, exercise, 'name', 'id')
+        if id_exercise == "":
+            return (False, "Exercise not found")
 
         for i in sets:
-            if i['exerciseday']==id_day:
+            if i['exerciseday'] == id_day:
                 day_ex.append(i.get('id'))
         for i in settings:
-            if i['exercise']==id_exercise and i['set'] in day_ex:
-                id=i.get('set')
+            if i['exercise'] == id_exercise and i['set'] in day_ex:
+                id = i.get('set')
 
         self.delete_info(f'set/{id}')
-        return any(i['set'] for i in self.get_info('set/').get('results')if i['sets']==id)==False
-    
-    def delete_day(self,workout,day):
-        """This function delete a training day"""
-        id_workout=self.match(self.get_info('workout/').get('results'),workout,'name','id')
-        days=[i for i in self.get_info('day/').get('results') if i['training']==id_workout]
-        id_day=self.match(days,day,'description','id')
-        if id_day=="":
-            return (False,"Day not found")
+        return any(i['set'] for i in self.get_info('set/').get('results') if i['sets'] == id) == False
+
+    def delete_trainingday(self, workout, day):
+        """This function deletes a training day"""
+        id_workout = self.match(self.get_info('workout/').get('results'), workout, 'name', 'id')
+        days = [i for i in self.get_info('day/').get('results') if i['training'] == id_workout]
+        id_day = self.match(days, day, 'description', 'id')
+        if id_day == "":
+            return (False, "Day not found")
         self.delete_info(f"day/{id_day}")
-        return any([i['id'] for i in self.get_info('day/').get('results') if i['id']==id_day])==False
+        return any([i['id'] for i in self.get_info('day/').get('results') if i['id'] == id_day]) == False
 
-    def delete_workout(self,workout_name):
-        """This function delete an workout"""
-        workouts=self.get_info('workout/').get('results')
-        id=self.match(workouts,workout_name,'name','id')
-        if id=="":
-            return (False,"Workout not found")
+    def delete_workout(self, workout_name):
+        """This function deletes an workout"""
+        workouts = self.get_info('workout/').get('results')
+        id = self.match(workouts, workout_name, 'name', 'id')
+        if id == "":
+            return (False, "Workout not found")
         self.delete_info(f'workout/{id}')
-        return any([i['name'] for i in self.get_info('workout/').get('results') if i['name']==workout_name])==False
+        return any([i['name'] for i in self.get_info('workout/').get('results') if i['name'] == workout_name]) == False
 
-    def save_ex_details(self,dir_name):
-        exercises = [i['exercise'] for i in user1.get_info('setting/').get('results')]
+    def save_exercises_details(self,dir_name):
+        exercises = [i['exercise'] for i in self.get_info('setting/').get('results')]
         ex_images=self.get_info(f'exerciseimage/',100).get('results')
         ex_comments=self.get_info(f'exercisecomment/',120).get('results')
         all_exercises=self.get_info(f'exercise/',400).get('results')
@@ -343,151 +442,55 @@ class Api():
             for j in ex_comments:
                 if j['id'] == i:
                     ex_comment = j.get('comment')
-            f = open(f'{dir_name}\exercise_{i}.html', 'w')
-            message = f"""<html>
-            <head></head>
-            <body>
-            <h1>{ex_name}</h1>
-            <h4>{ex_comment}</h4>
-            <a href = {ex_image}>Click here for Exercise Image</a>
-            </body>
-            </html>"""
-            f.write(message)
-            f.close()
+            with open(f'{dir_name}\exercise_{i}.html',mode='w') as f:
+                data=f"Exercise ID: {i} \nExercise comments: {ex_comment} \nExercise Image: {ex_image}"
+                f.write(data)
         return len(os.listdir(dir_name))>0
 
 
+    def create_workouts_with_tomlfile(self,toml_file):
+        """The function takes data from a tomlfile and creates new workouts based on the tomlfile data"""
 
-class TomlClass(Api):
-
-    def toml_to_dict(self, toml_file):
-        with open(toml_file) as f:
-            data = f.read()
-        data = toml.loads(data)
-        return data
-
-    def dict_to_toml(self, dict_data, new_file):
-        with open(f"{new_file}.toml", mode="w") as f:
-            data = toml.dumps(dict_data)
-            f.write(data)
-        return bool(f"{new_file}.toml")
-
-    def nutrition_plans(self, toml_file):
-        toml_data=self.toml_to_dict(toml_file)
-        if 'nutrition_plans' in toml_data:
-            for i in toml_data.get("nutrition_plans"):
-                data = {"id": "",
-                        "creation_date": "",
-                        "description": i,
-                        "has_goal_calories": True,
-                        "language": 2}
-                request = self.post_info('nutritionplan/', data)
-                id = request.get('id')
-                if "meals" in toml_data.get("nutrition_plans").get(i):
-                    toml_data.get("nutrition_plans", {}).get(i, {}).get("meals")
-                    self.meals(toml_data.get("nutrition_plans").get(i).get("meals"), id)
-        return request
-
-    def meals(self, toml_data, plan):
-        for i in toml_data:
-            data = {"id": "",
-                    "plan": plan,
-                    "order": 1,
-                    "time": toml_data.get(i).get("time")}
-            self.post_info('meal/', data)
-            for j in self.get_info('meal/').get('results'):
-                if j['plan'] == plan:
-                    id = j.get('id')
-            if "items" in toml_data.get(i):
-                self.items(toml_data.get(i).get("items"), id)
-
-    def items(self, toml_data, meal):
-        for i in toml_data:
-            id = ""
-            ingredient_name = toml_data.get(i).get("ingredient")
-            amount = toml_data.get(i).get("amount")
-            weight = toml_data.get(i).get("weight")
-            total = amount * weight
-            for i in self.get_info("ingredient/").get('results'):
-                if i["name"] == ingredient_name:
-                    id = i.get("id")
-            if id == "":
-                return f"Ingredient {ingredient_name} is not in the list"
-            data = {"id": "",
-                    "meal": meal,
-                    "ingredient": id,
-                    "weight_unit": "",
-                    "order": 1,
-                    "amount": total}
-            self.post_info("mealitem/", data)
-
-    def workouts(self,toml_file):
-        toml_data=self.toml_to_dict(toml_file)
+        toml_data = self.toml_to_dict(toml_file)
         if 'workouts' in toml_data:
-            for i in toml_data.get("workouts"):
-                data= {"id": "",
-                       "creation_date": "",
-                       "name":toml_data.get("workouts").get(i).get('name'),
-                       "description": ""}
-                request=self.post_info('workout/',data)
-                id=request.get('id')
-                if "days" in toml_data.get("workouts").get(i):
-                    self.days(toml_data.get("workouts").get(i).get("days"),id)
-        return request
+            for workout in toml_data.get("workouts"):
+                request = self.create_workout(toml_data.get("workouts").get(workout).get('name'))
+                workout_id = request.get('id')
+                if "days" in toml_data.get("workouts").get(workout):
+                    self.create_trainingdays_with_tomlfile(toml_data.get("workouts").get(workout).get("days"),workout_id)
 
-    def days(self,toml_data,workout):
-        for i in toml_data:
-            data={"id":"",
-                  "training":workout ,
-                  "description": toml_data.get(i).get("description"),
-                  "day": toml_data.get(i).get("day")}
-            request=self.post_info('day/',data)
-            id=request.get('id')
+    def create_trainingdays_with_tomlfile(self,toml_data,workout_id):
+        """The function creates new training days for a specific workout"""
 
-            if "exercises" in toml_data.get(i):
-                self.exercises(toml_data.get(i).get("exercises"),id)
+        for day in toml_data:
+            request=self.create_trainingday(workout_id,toml_data.get(day).get("description"),toml_data.get(day).get("day"))
+            day_id=request.get('id')
+            if "exercises" in toml_data.get(day):
+                self.add_exercises_from_tomlfile(toml_data.get(day).get("exercises"),day_id)
 
-    def exercises(self,toml_data,day):
-        total_ex=self.get_info('exercise/',420).get('results')
-        for i in toml_data:
-            ex_name = toml_data.get(i).get("exercise")
-            ex_id=self.match(total_ex,ex_name,'name','id')
+    def add_exercises_from_tomlfile(self,toml_data,day_id):
+        """The function adds new exercises for a specific training day"""
 
-            set_data = {"id": "",
-                        "exerciseday": day,
-                        "sets":1,
-                        "order": 1}
-                        # "sets":  toml_data.get(i).get("sets"),
-                        # "order": toml_data.get(i).get("order")}
-            request=self.post_info('set/', set_data)
-
-            ex_data ={"id":"",
-                    "set":request.get('id'),
-                    "exercise": ex_id,
-                    "repetition_unit": 1 ,
-                    "reps": toml_data.get(i).get("reps"),
-                    "weight_unit":1,
-                    "order" :1}
-            self.post_info('setting/',ex_data)
+        for exercise in toml_data:
+            exercise_id=self.match(self.get_info('exercise/',420).get('results'),toml_data.get(exercise).get("exercise"),'name','id')
+            if exercise_id == "":
+                return "Exercise not in the list"
+            self.add_exercise(day_id, exercise_id,toml_data.get(exercise).get('sets'),toml_data.get(exercise).get('reps'))
 
 
-def api_program():
+
+def api_main():
     user = Api("Token ffb50c5ea4d743aefa7540aa176590d7de57c907", "lilijora", "belive2021")
-    # print(user.weight_entry('2021-08-18',48))
-    # print(user.week_program(1750,1300))
-    # print(user.create_workout('Workout1',3 ))
-    # print(user.save_ex_details('exercise_details'))
-    # print(user.schedule("Schedule3","2021-05-18",True,True))
-    # print(user.workout_in_schedule('Schedule2','Workout4',4))
-    # print(user.delete_exercise('w1','day1','Back Squat'))
-    # print(user.delete_workout('Workout4'))
-    pass
+    # print(user.weight_goals('2021-10-18',48))
+    # print(user.create_nutritionplans(1750))
+    # print(user.create_complete_workout('Workout_Lili',3 ))
+    # print(user.save_exercises_details('exercise_details'))
+    # print(user.create_schedule("Schedule1","2021-06-18",True,True))
+    # print(user.add_workout_to_schedule('Schedule1','Workout_Lili',4))
+    # print(user.delete_exercise('Workout_Lili','Day 1','Shoulder Press, on Machine'))
+    # print(user.delete_workout('Workout_1'))
 
-def toml_program():
-    user = TomlClass("Token ffb50c5ea4d743aefa7540aa176590d7de57c907", "lilijora", "belive2021")
-    print(user.nutrition_plans("nutritionplan.toml"))
-    print(user.workouts("workout.toml"))
+    # print(user.create_nutritionplans_with_tomlfile("nutritionplan.toml"))
+    print(user.create_workouts_with_tomlfile("workout.toml"))
 
-api_program()
-toml_program()
-
+api_main()
