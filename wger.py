@@ -1,4 +1,8 @@
-import requests,random,os,toml
+import requests
+import random
+import os
+import toml
+import pytest
 
 class Api():
     base_url='https://wger.de/api/v2/'
@@ -64,7 +68,7 @@ class Api():
         if response.status_code==201:
             return response.json()
         else:
-            return f"Status Code : {response.status_code}"
+            return False
 
     def delete_info(self,url_file):
         """General function for DELETE requests"""
@@ -160,40 +164,6 @@ class Api():
 
         return self.get_info('nutritionplan/').get("count") >= len(days)
 
-    def create_nutritionplans_with_tomlfile(self, toml_file):
-        """The function takes data from a tomlfile and creates new nutrition plans based on the tomlfile data"""
-
-        toml_data = self.toml_to_dict(toml_file)
-        if 'nutrition_plans' in toml_data:
-            for nutritionplan in toml_data.get("nutrition_plans"):
-                request = self.create_nutritionplan(
-                    toml_data.get("nutrition_plans").get(nutritionplan).get("description"), True)
-                nutritionplan_id = request.get('id')
-                if "meals" in toml_data.get("nutrition_plans").get(nutritionplan):
-                    self.create_meals_with_tomlfile(toml_data.get("nutrition_plans").get(nutritionplan).get('meals'),
-                                                    nutritionplan_id)
-
-    def create_meals_with_tomlfile(self, toml_data, nutritionplan_id):
-        """The function creates new meals for a specific nutrition plan"""
-
-        for meal in toml_data:
-            request = self.create_meal(nutritionplan_id, toml_data.get(meal).get("time"))
-            meal_id = request.get('id')
-            if "items" in toml_data.get(meal):
-                self.add_items_from_tomlfile(toml_data.get(meal).get('items'), meal_id)
-
-    def add_items_from_tomlfile(self, toml_data, meal_id):
-        """The function adds new meal items for a specific meal"""
-
-        for item in toml_data:
-            item_id = self.match(self.get_info("ingredient/").get('results'), toml_data.get(item).get('ingredient'),
-                                 'name', 'id')
-            if item_id == "":
-                return f"Ingredient is not in the list"
-            amount = toml_data.get(item).get('amount')
-            weight = toml_data.get(item).get('weight')
-            total_amount = amount * weight
-            self.add_mealitem(meal_id, item_id, total_amount)
 
 #WORKOUT RELATED FUNCTION
 
@@ -259,18 +229,21 @@ class Api():
     def add_exercise(self, day_id, ex_id, sets, reps):
         """The function adds an exercise to a specific training day """
         """You can chose the number o sets and also the number of repetitions for each set"""
+        request=False
         data_set = {"id": "",
                     "exerciseday": day_id,
                     "sets": sets,
                     "order": 1}
         set_request = self.post_info('set/', data_set)
-        data = {"id": "",
-                "set": set_request.get('id'),
-                "exercise": ex_id,
-                "repetition_unit": 1,
-                "reps": reps,
-                "weight_unit": 1}
-        self.post_info('setting/', data)
+        if set_request!=False:
+            data = {"id": "",
+                    "set": set_request.get('id'),
+                    "exercise": ex_id,
+                    "repetition_unit": 1,
+                    "reps": reps,
+                    "weight_unit": 1}
+            request=self.post_info('setting/', data)
+        return request
 
     def select_exercises(self, workout_id, day_id, total_exercise_number, muscle_group_exercise_number):
         """
@@ -448,35 +421,99 @@ class Api():
         return len(os.listdir(dir_name))>0
 
 
-    def create_workouts_with_tomlfile(self,toml_file):
+#TOML FUNCTIONS - NUTRITION RELATED
+    def create_nutritionplans_with_tomlfile(self, toml_data):
+        """The function takes data from a tomlfile and creates new nutrition plans based on the tomlfile data"""
+        request = False
+        if 'nutrition_plans' in toml_data:
+            for nutritionplan in toml_data.get("nutrition_plans", {}):
+                request = self.create_nutritionplan(
+                    toml_data.get("nutrition_plans", {}).get(nutritionplan, {}).get("description"), True)
+                if request==False:
+                    "Post Error"
+                nutritionplan_name = request.get('description')
+                if "meals" in toml_data.get("nutrition_plans", {}).get(nutritionplan, {}):
+                    self.create_meals_with_tomlfile(
+                        toml_data.get("nutrition_plans", {}).get(nutritionplan, {}).get('meals', {}),
+                        nutritionplan_name)
+        return request
+
+    def create_meals_with_tomlfile(self, toml_data, nutritionplan_name):
+        """The function creates new meals for a specific nutrition plan"""
+        request=False
+        nutritionplan_id=self.match(self.get_info('nutritionplan/').get('results'),nutritionplan_name,'description','id')
+        for meal in toml_data:
+            request = self.create_meal(nutritionplan_id, toml_data.get(meal, {}).get("time"))
+            if request == False:
+                "Post Error"
+            meal_id = request.get('id')
+            if "items" in toml_data.get(meal, {}):
+                self.add_items_from_tomlfile(toml_data.get(meal, {}).get('items', {}), meal_id)
+
+    def add_items_from_tomlfile(self, toml_data, meal_id):
+        """The function adds new meal items for a specific meal"""
+        request=False
+        for item in toml_data:
+            item_id = self.match(self.get_info("ingredient/").get('results'),
+                                 toml_data.get(item, {}).get('ingredient'),
+                                 'name', 'id')
+            if item_id == "":
+                return f"Ingredient is not in the list"
+            amount = toml_data.get(item, {}).get('amount')
+            weight = toml_data.get(item, {}).get('weight')
+            total_amount = amount * weight
+            request=self.add_mealitem(meal_id, item_id, total_amount)
+            if request == False:
+                "Post Error"
+        return request
+
+    # TOML FUNCTIONS - WORKOUT RELATED
+    def create_workouts_with_tomlfile(self,toml_data):
         """The function takes data from a tomlfile and creates new workouts based on the tomlfile data"""
-
-        toml_data = self.toml_to_dict(toml_file)
+        request = False
         if 'workouts' in toml_data:
-            for workout in toml_data.get("workouts"):
-                request = self.create_workout(toml_data.get("workouts").get(workout).get('name'))
-                workout_id = request.get('id')
-                if "days" in toml_data.get("workouts").get(workout):
-                    self.create_trainingdays_with_tomlfile(toml_data.get("workouts").get(workout).get("days"),workout_id)
+            for workout in toml_data.get("workouts",{}):
+                request = self.create_workout(toml_data.get("workouts",{}).get(workout,{}).get('name'))
+                if request==False:
+                    return "Post Error"
+                workout_name = request.get('name')
+                if "days" in toml_data.get("workouts",{}).get(workout,{}):
+                    self.create_trainingdays_with_tomlfile(toml_data.get("workouts",{}).get(workout,{}),workout_name)
+        return request
 
-    def create_trainingdays_with_tomlfile(self,toml_data,workout_id):
+
+    def create_trainingdays_with_tomlfile(self,toml_data,workout_name):
         """The function creates new training days for a specific workout"""
+        request=False
+        workout_id=self.match(self.get_info('workout/').get('results'),workout_name,"name","id")
+        for day in toml_data.get("days",{}):
+            request=self.create_trainingday(workout_id,toml_data.get("days").get(day,{}).get("description"),toml_data.get("days").get(day,{}).get("day",{}))
+            if request==False:
+                return "Post Error"
+            day_name=request.get('description')
+            if "exercises" in toml_data.get("days").get(day):
+                self.add_exercises_from_tomlfile(toml_data.get("days").get(day,{}),day_name)
+        return request
 
-        for day in toml_data:
-            request=self.create_trainingday(workout_id,toml_data.get(day).get("description"),toml_data.get(day).get("day"))
-            day_id=request.get('id')
-            if "exercises" in toml_data.get(day):
-                self.add_exercises_from_tomlfile(toml_data.get(day).get("exercises"),day_id)
-
-    def add_exercises_from_tomlfile(self,toml_data,day_id):
+    def add_exercises_from_tomlfile(self,toml_data,day_name):
         """The function adds new exercises for a specific training day"""
-
-        for exercise in toml_data:
-            exercise_id=self.match(self.get_info('exercise/',420).get('results'),toml_data.get(exercise).get("exercise"),'name','id')
+        request=False
+        day_id=self.match(self.get_info('day/').get('results'),day_name,'description','id')
+        for exercise in toml_data.get("exercises"):
+            exercise_id=self.match(self.get_info('exercise/',420).get('results'),toml_data.get("exercises",{}).get(exercise,{}).get("exercise"),'name','id')
             if exercise_id == "":
                 return "Exercise not in the list"
-            self.add_exercise(day_id, exercise_id,toml_data.get(exercise).get('sets'),toml_data.get(exercise).get('reps'))
+            request=self.add_exercise(day_id, exercise_id,toml_data.get("exercises",{}).get(exercise,{}).get('sets'),toml_data.get("exercises").get(exercise,{}).get('reps'))
+            if request==False:
+                return "Post Error"
+        return request
 
+    def create_workouts_and_nutritionplans(self,workouts_file,nutritionplans_file):
+        """This method creates workouts and nutrition plans"""
+        workouts_data=self.toml_to_dict(workouts_file)
+        nutritionplans_data=self.toml_to_dict(nutritionplans_file)
+        self.create_nutritionplans_with_tomlfile(nutritionplans_data)
+        self.create_workouts_with_tomlfile(workouts_data)
 
 
 def api_main():
@@ -490,7 +527,12 @@ def api_main():
     # print(user.delete_exercise('Workout_Lili','Day 1','Shoulder Press, on Machine'))
     # print(user.delete_workout('Workout_1'))
 
-    # print(user.create_nutritionplans_with_tomlfile("nutritionplan.toml"))
-    print(user.create_workouts_with_tomlfile("workout.toml"))
+    print(user.create_workouts_and_nutritionplans("workout.toml","nutritionplan.toml"))
+    print(user.create_workouts_with_tomlfile(user.toml_to_dict("workout.toml")))
+    print(user.create_trainingdays_with_tomlfile(user.toml_to_dict("days.toml"),"Test_days"))
+    print(user.add_exercises_from_tomlfile(user.toml_to_dict("exercises.toml"),"First Day"))
 
 api_main()
+
+
+

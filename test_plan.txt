@@ -1,0 +1,10 @@
+Tests:
+1. Test get function
+2. Test post function
+3. Test create_workout function
+4. Test create_workout with tomlfile
+5. Test create_trainigdays function
+6. Test create_trainingdays using a complete tomlfile (that has also data for the workout)
+7. Test create_trainingdays using a  tomlfile that has just data for the training days
+8. Test add_exercises - add an existing exercise/ add an exercise that is not in the list
+
