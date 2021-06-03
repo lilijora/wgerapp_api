@@ -1,10 +1,24 @@
 Tests:
-1. Test get function
-2. Test post function
-3. Test create_workout function
-4. Test create_workout with tomlfile
-5. Test create_trainigdays function
-6. Test create_trainingdays using a complete tomlfile (that has also data for the workout)
-7. Test create_trainingdays using a  tomlfile that has just data for the training days
-8. Test add_exercises - add an existing exercise/ add an exercise that is not in the list
 
+1.Create one workout
+2.Create one workout with name and description
+3.Create one workout that has a name that contains special characters and a long description
+4.Create workouts for all weeks in a year (52 workouts)
+5.Delete one workout
+6.Delete one workout that has the same name with another one
+7.Delete all workouts
+
+8.Add a training day to a specific workout
+9.Add more than 7 training days for one workout
+10.Add a training day that has a long description(more than 40 characters)
+11.Delete a training day
+12.Delete all training days
+
+13.Add an exercise to a training day
+14.Add an exercise that is not in the list
+15.Add more than 10 exercises for a training day
+16.Add the same exercise for two times
+17.Add 12 sets for an exercise
+18.Add a superset
+19.Delete an exercise
+20.Delete all exercises of a specific workout
