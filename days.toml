@@ -1,0 +1,12 @@
+[days.day1]
+    description="First Day"
+    day=1
+    [days.day1.exercises.exercise1]
+        exercise="Front Squats"
+        reps=12
+    [days.day1.exercises.exercise2]
+        exercise="Rack Deadlift"
+        reps=15
+    [days.day1.exercises.exercise3]
+        exercise="Crunches"
+        reps=12
