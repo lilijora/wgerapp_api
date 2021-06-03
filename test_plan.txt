@@ -1,5 +1,4 @@
 Tests:
-
 1.Create one workout
 2.Create one workout with name and description
 3.Create one workout that has a name that contains special characters and a long description
