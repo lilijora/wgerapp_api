@@ -1,9 +1,15 @@
 [exercises.exercise1]
     exercise="Front Squats"
     reps=12
+    repetition_unit=1
+    weight_unit=1
 [exercises.exercise2]
     exercise="Rack Deadlift"
     reps=15
+    repetition_unit=1
+    weight_unit=1
 [exercises.exercise3]
     exercise="Crunches"
     reps=12
+    repetition_unit=1
+    weight_unit=1

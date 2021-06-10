@@ -6,9 +6,35 @@
         [workouts.workout1.days.day1.exercises.exercise1]
             exercise="Front Squats"
             reps=12
+            repetition_unit=1
+            weight_unit=1
         [workouts.workout1.days.day1.exercises.exercise2]
             exercise="Rack Deadlift"
             reps=15
+            repetition_unit=1
+            weight_unit=1
         [workouts.workout1.days.day1.exercises.exercise3]
             exercise="Crunches"
             reps=12
+            repetition_unit=1
+            weight_unit=1
+[workouts.workout2]
+    name="Workout2"
+    [workouts.workout2.days.day1]
+        description="First Day"
+        day=1
+        [workouts.workout1.days.day1.exercises.exercise1]
+            exercise="Back Squats"
+            reps=12
+            repetition_unit=1
+            weight_unit=1
+        [workouts.workout1.days.day1.exercises.exercise2]
+            exercise="Barbell Lunges"
+            reps=15
+            repetition_unit=1
+            weight_unit=1
+        [workouts.workout1.days.day1.exercises.exercise3]
+            exercise="Crunches"
+            reps=12
+            repetition_unit=1
+            weight_unit=1

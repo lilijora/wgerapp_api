@@ -10,6 +10,7 @@ class Api():
         self.auth_token = auth_token
         self.username=username
         self.password=password
+        self.workouts=[]
 
     def __repr__(self):
         return f"User: {self.username}"
@@ -298,6 +299,8 @@ class Api():
                         "name": workout_name,
                         "description": description}
         request = self.post_info('workout/', workout_data)
+        if request[0]==True:
+            self.workouts.append(request[1])
         return request
 
     def create_complete_workout(self, workout_name, no_days, total_exercise_number=6, muscle_group_exercise_number=2):
@@ -532,10 +535,14 @@ def api_main():
     # print(user.delete_exercise('Workout_Lili','Day 1','Shoulder Press, on Machine'))
     # print(user.delete_workout('Workout_1'))
 
-    # print(user.create_workouts_and_nutritionplans("workout.toml","nutritionplan.toml"))
-    # print(user.create_workouts_with_tomlfile(user.toml_to_dict("workout.toml")))
-    # print(user.create_trainingdays_with_tomlfile(user.toml_to_dict("days.toml"),"Test_days"))
-    # print(user.add_exercises_from_tomlfile(user.toml_to_dict("exercises.toml"),"First Day"))
+    print(user.create_workouts_and_nutritionplans("workout.toml","nutritionplan.toml"))
+    print(user.create_workouts_with_tomlfile(user.toml_to_dict("workout.toml")))
+    print(user.create_trainingdays_with_tomlfile(user.toml_to_dict("days.toml"),"Test_days"))
+    print(user.add_exercises_from_tomlfile(user.toml_to_dict("exercises.toml"),"First Day"))
 
 api_main()
-user = Api("Token ffb50c5ea4d743aefa7540aa176590d7de57c907", "lilijora", "belive2021")
+
+
+
+
+
