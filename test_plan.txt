@@ -1,23 +1,24 @@
 Tests:
-1.Create one workout
-2.Create one workout with name and description
-3.Create one workout that has a name that contains special characters and a long description
-4.Create workouts for all weeks in a year (52 workouts)
-5.Delete one workout
-6.Delete one workout that has the same name with another one
-7.Delete all workouts
 
-8.Add a training day to a specific workout
-9.Add more than 7 training days for one workout
-10.Add a training day that has a long description(more than 40 characters)
-11.Delete a training day
-12.Delete all training days
+Positive Tests:
+•	Create one workout
+•	Create one workout with name and description
+•	Create one workout that has a name that contains special characters and a long description
+•	Create workouts for all weeks in a year (52 workouts)
+•	Add a training day to an existing workout
+•	Edit training day
+•	Add an exercise to an existing training day
+•	Add the same exercise for two times in the same training day
+•	[Add a superset]
 
-13.Add an exercise to a training day
-14.Add an exercise that is not in the list
-15.Add more than 10 exercises for a training day
-16.Add the same exercise for two times
-17.Add 12 sets for an exercise
-18.Add a superset
-19.Delete an exercise
-20.Delete all exercises of a specific workout
+Negative tests:
+•	Add more than 10 sets for an exercise
+•	Add a day to an inexisting workout
+•	Add more than 7 training days for one workout
+•	Add a training day that has a long description(more than 40 characters)
+•	Add an exercise to an inexisting training day
+•	Add an inexisting exercise
+•	Add a training day and provide an invalid value for the day number (a string/ negative number)
+•	Try to delete an inexisting workout/training day
+•	Add exercise without providing the name or the number of sets.
+
