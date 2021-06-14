@@ -7,7 +7,7 @@ import random
 @pytest.fixture()
 def user():
     """
-    This function creates an entity of the Api Class using the login credentials and the authorization token.
+    :return: the object login of the Api Class that is used for tests.
     """
     login = Api("Token ffb50c5ea4d743aefa7540aa176590d7de57c907", "lilijora", "belive2021")
     return login
@@ -16,17 +16,16 @@ def user():
 @pytest.fixture(scope="function")
 def delete_entities(user, request):
     """
-    This function is used as a clean up fixture.
-    Using this fixture, each test will be independent from the previous ones.
+    Clean up fixture.
     """
     def delete_all_workouts():
         return [user.delete_workout(i["name"])for i in user.get_info("workout/")[1].get("results") if i in user.workouts]
     request.addfinalizer(delete_all_workouts)
 
 
-def existing_entities(user, url_path):
+def get_existing_entities(user, url_path):
     """
-    This function provides a list of ids of the existing entities for a specific api endpoint.
+    :return: a list containing the ids of the existing entities for a specific api endpoint.
     """
     req = user.get_info(url_path)[1].get("results")
     ids = [i["id"] for i in req]
@@ -35,7 +34,7 @@ def existing_entities(user, url_path):
 
 def random_text_generator(name_len):
     """
-    This function is used to generate a random string containing all types of characters.
+    :return: a random string containing all types of characters.
     """
     s = ""
     chr_list = list(string.ascii_lowercase) + list(string.ascii_uppercase) + list(string.digits) + list('@_!#$%^&*()<>?}{~:')
@@ -46,7 +45,7 @@ def random_text_generator(name_len):
 
 def random_number_generator(no_len):
     """
-    This function generates a random number based on a given length.
+    :return: a random number that has the length equal to a given value
     """
     no = ""
     no_digits = list(string.digits)
@@ -103,7 +102,7 @@ class TestWorkout:
     @pytest.mark.parametrize("ex_id,sets,reps,repetition_unit,weight_unit,result", [(325, 4, 12, 1, 1, True), (325, 4, 12, 1, 1, True)])
     def test_add_exercises(self, user, ex_id, sets, reps, repetition_unit, weight_unit, result):
         """
-        This test function checks if you can add an exercise to a specific trainingday
+        This test function checks if you can add an exercise to a specific training day
         Steps:
             creates a workout
             checks if the workout was created successfully
@@ -134,9 +133,8 @@ class TestWorkout:
     @pytest.mark.parametrize("name_len, description_len, result", [(100, 1000, True), (101, 1000, False), (100, 1001, False)])
     def test_add_one_workout_with_special_name_and_long_description(self, user, name_len, description_len, result):
         """
-        This test verify the create workout function using different values for the length of the name and description.
-        Expected result: Workout created successfully if the length of the name is less or equal to 100,
-                         and the length of the description is less or equal to 1000.
+        This test verifies if a workout can only be created if the name length is less or equal to 100 and the description
+        length is less or equal to 1000.
         """
         assert user.create_workout(random_text_generator(name_len), random_text_generator(description_len))[0] == result
 
@@ -157,7 +155,7 @@ class TestWorkout:
                     number of repetitons,
                     repetition unit id,
                     weight unit id.
-            checks if the exercise was added successfully.
+            checks if the request has the expected value.
         Expected result:
             The function should return False if the number of sets is greater than the maximum value - 10.
         """
@@ -176,10 +174,10 @@ class TestWorkout:
         Steps:
             generates a random workout id until this is unique
             creates the training day using the generated workout id
-            checks if the training day was created successfully
+            checks that the request was unsuccessful
         """
         workout_id = random_number_generator(6)
-        while workout_id in existing_entities(user, 'workout/'):
+        while workout_id in get_existing_entities(user, 'workout/'):
             workout_id = random_number_generator(6)
         assert user.create_trainingday(workout_id, description="Test_Day", day_no=1)[0] == False
 
@@ -191,7 +189,7 @@ class TestWorkout:
             creates a workout
             checks if the workout was created successfully
             creates training days until the maximum value is exceeded
-            checks if the training days were created successfully
+            checks that the request was unsuccessful.
         Expected result:
             The function should return False because the number of days is greater than the maximum value - 7.
         """
@@ -212,7 +210,7 @@ class TestWorkout:
             creates a workout
             checks if the workout was created successfully
             creates training days with the same day number id
-            checks if the training days were created successfully
+            checks that the request was unsuccessful.
          Expected result:
             The function should return False because there is no possibility to have the same weekday more than once
             in a week.
@@ -229,12 +227,12 @@ class TestWorkout:
     @pytest.mark.parametrize("description_len,day_no,result", [(100, 1, True), (101, 1, False)])
     def test_add_trainingday_with_long_description(self, user, description_len, day_no, result):
         """
-        This test verify the create training day function using different values for the length of the description.
+        This test verifies if a training day can only be created if the description length is less or equal to 100.
         Steps:
             creates a workout
             checks if the workout was created successfully
             creates training day using the workout id
-            checks if the training day was created successfully
+            checks if the request has the expected value
         Expected result: Training day created successfully if the length of the description is less or equal to 100.
         """
         req_workout = user.create_workout("Test_Workout")
@@ -249,10 +247,10 @@ class TestWorkout:
         Steps:
             generates a random training day id until this is unique
             adds the exercise to a training day using the generated training day id
-            checks if the exercise was added successfully.
+            checks that the request was unsuccessful
         """
         day_id = random_number_generator(6)
-        while day_id in existing_entities(user, 'day/'):
+        while day_id in get_existing_entities(user, 'day/'):
             day_id = random_number_generator(6)
         assert user.add_exercise(day_id, ex_id=325, sets=4, reps=12, repetition_unit=1, weight_unit=1)[0] == False
 
@@ -267,7 +265,7 @@ class TestWorkout:
             checks if the training day was created successfully
             generates a random exercise id until this is an inexistent one
             adds the exercise to a training day using the generated training day id
-            checks if the exercise was added successfully.
+            checks that the request was unsuccessful.
         """
         req_workout = user.create_workout("Test_Workout")
         assert req_workout[0] == True
@@ -276,7 +274,7 @@ class TestWorkout:
         assert req_day[0] == True
         day_id = req_day[1].get("id")
         exercise_id = random_number_generator(4)
-        while exercise_id in existing_entities(user, 'exercise/'):
+        while exercise_id in get_existing_entities(user, 'exercise/'):
             exercise_id = random_number_generator(4)
         assert user.add_exercise(day_id, exercise_id, sets=4, reps=12, repetition_unit=1, weight_unit=1)[0] == False
 
@@ -288,7 +286,7 @@ class TestWorkout:
             creates a workout
             checks if the workout was created successfully
             creates training day using the workout id and invalid values for the description and day number.
-            checks if the training day was created successfully
+            checks that the request was unsuccessful.
         Expected result:
             Training day not created because the description should be a string not an integer and day number id should
             be an integer and not a string.
@@ -311,7 +309,7 @@ class TestWorkout:
                                                             number of repetitons,
                                                             repetition unit id,
                                                             weight unit id.
-            checks if the exercise was added successfully.
+            checks that the request was unsuccessful
         """
         req_workout = user.create_workout("Test_Workout")
         assert req_workout[0] == True
@@ -329,7 +327,7 @@ class TestWorkout:
         Steps:
             generates a random workout id until this is unique
             deletes the workout using the workout name corresponding to the generated workout id
-            checks if the delete request was successfully
+            checks that the request was unsuccessful
         """
         workout_name = random_text_generator(10)
         while workout_name in [i['name'] for i in user.get_info('workout/')[1].get("results")]:
@@ -345,7 +343,7 @@ class TestWorkout:
             checks if the workout was created successfully
             generates a random training day id
             deletes the training day using the workout name and the generated training day id
-            checks if the delete request was successfully
+            checks that the request was unsuccessful
         """
         req_workout = user.create_workout("Test_Workout")
         assert req_workout[0] == True

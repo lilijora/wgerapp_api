@@ -5,12 +5,12 @@ Reported By: Jora Ștefania Liliana
 Reported On: 06/10/2021
 Reason: Defect
 Environment: Windows 10 Enterprise 64-bit
-Description:
+Steps to reproduce the problem:
 •	Login to user account
 •	Create a workout
 •	Add more days with the same day number ID (day number ID is used to identify each day of the week, starting from Monday - ID1 to Sunday - ID7)
 Expected result: In this situation, after adding the first weekday you shoud receive a HTTP status code 400 Bad Request if the ID already exists in that week.
-Actual result: Same weekday more than once in the same week.
+Actual result: Same weekday more than once in the same week,  HTTP status code 201 Created.
 Additional info: From the GUI you can’t select the same weekday more than once. After you add a training day, the selected one it’s automatically removed from the list of available days.
 
 
@@ -21,7 +21,7 @@ Reported By: Jora Ștefania Liliana
 Reported On: 06/10/2021
 Reason: Defect
 Environment: Windows 10 Enterprise 64-bit , Mozilla Firefox89.0 (64-bit)
-Description:
+Steps to reproduce the problem:
 •	Login to user account
 •	Create a workout
 •	Add a training day to the current workout
