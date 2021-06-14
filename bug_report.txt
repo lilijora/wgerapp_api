@@ -1,0 +1,33 @@
+Title: There is a possibility to add a weekday more then once in the same week.
+Severity: 2 - Operational error, wrong result, loss of functionality
+Priority: 3 - Should fix when time permits
+Reported By: Jora Ștefania Liliana
+Reported On: 06/10/2021
+Reason: Defect
+Environment: Windows 10 Enterprise 64-bit
+Steps to reproduce the problem:
+•	Login to user account
+•	Create a workout
+•	Add more days with the same day number ID (day number ID is used to identify each day of the week, starting from Monday - ID1 to Sunday - ID7)
+Expected result: In this situation, after adding the first weekday you shoud receive a HTTP status code 400 Bad Request if the ID already exists in that week.
+Actual result: Same weekday more than once in the same week,  HTTP status code 201 Created.
+Additional info: From the GUI you can’t select the same weekday more than once. After you add a training day, the selected one it’s automatically removed from the list of available days.
+
+
+Title: The application allows you to add empty sets but not to edit them.
+Severity: 2 - Operational error, wrong result, loss of functionality
+Priority: 2 - Must fix before the product is released
+Reported By: Jora Ștefania Liliana
+Reported On: 06/10/2021
+Reason: Defect
+Environment: Windows 10 Enterprise 64-bit , Mozilla Firefox89.0 (64-bit)
+Steps to reproduce the problem:
+•	Login to user account
+•	Create a workout
+•	Add a training day to the current workout
+•	Add an empty set to the current training day (configure just the number of sets, don’t add any exercise)
+•	Try to edit the created set
+•	Press the “Update” botton
+Expected result: In this situation, after adding an empty set you should be able to edit it – to add exercises, to edit number of sets, number of repetitions, to select the repetition unit and weight unit.
+Actual result: When you are trying to edit an empty set, after you press the “Update” botton nothing happen. The “Update” botton works like a “Close” botton.
+Additional info: You should not be able to add an empty set, or the functionality of the edit option should be changed. In the current situation, you can edit number of sets, number of repetitions, repetition unit and weight unit just if an exercise already exist.
